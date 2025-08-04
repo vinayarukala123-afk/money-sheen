@@ -1,5 +1,4 @@
 import { Card } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 interface Transaction {
   id: string;
@@ -36,6 +35,7 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
   }, {} as Record<string, { month: string; income: number; expense: number }>);
 
   const timeSeriesData = Object.values(monthlyData);
+  const maxValue = Math.max(...timeSeriesData.flatMap(d => [d.income, d.expense]));
 
   // Prepare data for category breakdown
   const categoryData = transactions
@@ -51,6 +51,8 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
     value: amount
   }));
 
+  const totalExpenses = pieData.reduce((sum, item) => sum + item.value, 0);
+
   const COLORS = ['#8b5cf6', '#06d6a0', '#f72585', '#4cc9f0', '#7209b7', '#f77f00'];
 
   const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
@@ -63,34 +65,52 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
           <h3 className="text-lg font-semibold">Income vs Expenses</h3>
           <p className="text-muted-foreground text-sm">Monthly comparison</p>
         </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis 
-                dataKey="month" 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-              />
-              <YAxis 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-                tickFormatter={formatCurrency}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: 'white'
-                }}
-                formatter={(value: number) => [formatCurrency(value), '']}
-              />
-              <Bar dataKey="income" fill="#06d6a0" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" fill="#f72585" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="h-80 flex items-end justify-around space-x-2 px-4">
+          {timeSeriesData.map((data, index) => (
+            <div key={index} className="flex flex-col items-center space-y-2 flex-1">
+              <div className="flex items-end space-x-1 h-60">
+                {/* Income Bar */}
+                <div className="relative flex flex-col items-center">
+                  <div
+                    className="w-8 bg-gradient-to-t from-success to-success-glow rounded-t transition-smooth"
+                    style={{
+                      height: `${(data.income / maxValue) * 200}px`,
+                      minHeight: data.income > 0 ? '4px' : '0px'
+                    }}
+                  />
+                  <span className="text-xs text-success mt-1 font-medium">
+                    ${data.income.toLocaleString()}
+                  </span>
+                </div>
+                {/* Expense Bar */}
+                <div className="relative flex flex-col items-center">
+                  <div
+                    className="w-8 bg-gradient-to-t from-destructive to-destructive-glow rounded-t transition-smooth"
+                    style={{
+                      height: `${(data.expense / maxValue) * 200}px`,
+                      minHeight: data.expense > 0 ? '4px' : '0px'
+                    }}
+                  />
+                  <span className="text-xs text-destructive mt-1 font-medium">
+                    ${data.expense.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground font-medium">
+                {data.month}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center space-x-6 mt-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-gradient-to-r from-success to-success-glow rounded"></div>
+            <span className="text-sm text-muted-foreground">Income</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-gradient-to-r from-destructive to-destructive-glow rounded"></div>
+            <span className="text-sm text-muted-foreground">Expenses</span>
+          </div>
         </div>
       </Card>
 
@@ -100,36 +120,43 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
           <h3 className="text-lg font-semibold">Expense Categories</h3>
           <p className="text-muted-foreground text-sm">Spending breakdown by category</p>
         </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
-                  />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: 'white'
-                }}
-                formatter={(value: number) => [formatCurrency(value), 'Amount']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="h-80 flex items-center justify-center">
+          <div className="relative w-48 h-48">
+            {/* Simple donut chart using conic-gradient */}
+            <div
+              className="w-full h-full rounded-full"
+              style={{
+                background: `conic-gradient(${pieData.map((item, index) => {
+                  const percentage = (item.value / totalExpenses) * 100;
+                  const color = COLORS[index % COLORS.length];
+                  return `${color} 0deg ${percentage * 3.6}deg`;
+                }).join(', ')})`
+              }}
+            />
+            <div className="absolute inset-6 bg-card rounded-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Total</div>
+                <div className="text-lg font-semibold">{formatCurrency(totalExpenses)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Legend */}
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          {pieData.map((item, index) => {
+            const percentage = ((item.value / totalExpenses) * 100).toFixed(1);
+            return (
+              <div key={item.name} className="flex items-center space-x-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  {item.name} ({percentage}%)
+                </span>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -139,48 +166,47 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
           <h3 className="text-lg font-semibold">Spending Trend</h3>
           <p className="text-muted-foreground text-sm">Track your expense patterns over time</p>
         </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis 
-                dataKey="month" 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-              />
-              <YAxis 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-                tickFormatter={formatCurrency}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: 'white'
-                }}
-                formatter={(value: number) => [formatCurrency(value), '']}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="expense" 
-                stroke="#f72585" 
-                strokeWidth={3}
-                dot={{ fill: '#f72585', strokeWidth: 2, r: 6 }}
-                activeDot={{ r: 8, stroke: '#f72585', strokeWidth: 2 }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="income" 
-                stroke="#06d6a0" 
-                strokeWidth={3}
-                dot={{ fill: '#06d6a0', strokeWidth: 2, r: 6 }}
-                activeDot={{ r: 8, stroke: '#06d6a0', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="h-80 flex items-end justify-around space-x-4 px-4">
+          {timeSeriesData.map((data, index) => {
+            const prevData = timeSeriesData[index - 1];
+            const isIncreasing = prevData ? data.expense > prevData.expense : false;
+            
+            return (
+              <div key={index} className="flex flex-col items-center space-y-2 flex-1">
+                <div className="flex flex-col items-center h-60 justify-end">
+                  {/* Line point */}
+                  <div className="relative">
+                    <div
+                      className="w-3 h-3 bg-primary rounded-full shadow-lg"
+                      style={{
+                        marginBottom: `${(data.expense / maxValue) * 200}px`
+                      }}
+                    />
+                    {/* Trend indicator */}
+                    <div className={`absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs ${
+                      isIncreasing ? 'text-destructive' : 'text-success'
+                    }`}>
+                      {isIncreasing ? '↗' : '↘'}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-xs text-muted-foreground font-medium block">
+                      ${data.expense.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {data.month}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-center space-x-6 mt-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-primary rounded-full"></div>
+            <span className="text-sm text-muted-foreground">Expense Trend</span>
+          </div>
         </div>
       </Card>
     </div>
