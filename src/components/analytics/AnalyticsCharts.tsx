@@ -34,8 +34,13 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
     return acc;
   }, {} as Record<string, { month: string; income: number; expense: number }>);
 
-  const timeSeriesData = Object.values(monthlyData);
-  const maxValue = Math.max(...timeSeriesData.flatMap(d => [d.income, d.expense]));
+  const timeSeriesData = Object.values(monthlyData).sort((a, b) => {
+    const dateA = new Date(a.month + ' 01');
+    const dateB = new Date(b.month + ' 01');
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  const maxValue = Math.max(...timeSeriesData.flatMap(d => [d.income, d.expense]), 1);
 
   // Prepare data for category breakdown
   const categoryData = transactions
@@ -56,6 +61,24 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
   const COLORS = ['#8b5cf6', '#06d6a0', '#f72585', '#4cc9f0', '#7209b7', '#f77f00'];
 
   const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+
+  // Create pie chart gradient
+  const createPieGradient = () => {
+    if (pieData.length === 0) return 'conic-gradient(#gray 0deg 360deg)';
+    
+    let angle = 0;
+    const segments = pieData.map((item, index) => {
+      const percentage = (item.value / totalExpenses) * 100;
+      const startAngle = angle;
+      const endAngle = angle + (percentage * 3.6);
+      angle = endAngle;
+      
+      const color = COLORS[index % COLORS.length];
+      return `${color} ${startAngle}deg ${endAngle}deg`;
+    });
+    
+    return `conic-gradient(${segments.join(', ')})`;
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -126,11 +149,7 @@ export const AnalyticsCharts = ({ transactions }: AnalyticsChartsProps) => {
             <div
               className="w-full h-full rounded-full"
               style={{
-                background: `conic-gradient(${pieData.map((item, index) => {
-                  const percentage = (item.value / totalExpenses) * 100;
-                  const color = COLORS[index % COLORS.length];
-                  return `${color} 0deg ${percentage * 3.6}deg`;
-                }).join(', ')})`
+                background: createPieGradient()
               }}
             />
             <div className="absolute inset-6 bg-card rounded-full flex items-center justify-center">
